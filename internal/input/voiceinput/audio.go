@@ -10,14 +10,15 @@ import (
 )
 
 const (
-	sampleRate      = 32000
 	channels        = 1
-	framesPerBuffer = 640
+	framesPerBuffer = 960
 	bytesPerSample  = 2
 
-	compressedChunkSize  = 20
-	compressedMinChunks  = 6
+	compressedChunkSize  = 50
+	compressedMinChunks  = 10
 	compressedBufferSize = framesPerBuffer * bytesPerSample * channels * compressedChunkSize
+
+	rmsThreshold = 0.02
 
 	stopWord  = "[STOP]"
 	startWord = "[START]"
@@ -27,6 +28,7 @@ var (
 	stream      *portaudio.Stream
 	initOnce    sync.Once
 	inputBuffer = make([]int16, framesPerBuffer*channels)
+	sampleRate  float64
 )
 
 // InitializeAudio sets up the PortAudio stream
@@ -38,13 +40,20 @@ func InitializeAudio() {
 			log.Fatalf("Failed to initialize PortAudio: %v", err)
 		}
 
-		var err error
+		defaultInputDevice, err := portaudio.DefaultInputDevice()
+		if err != nil {
+			log.Fatalf("Failed to get default input device: %v", err)
+		}
+
+		sampleRate = defaultInputDevice.DefaultSampleRate
+
 		stream, err = portaudio.OpenDefaultStream(
-			channels,            // Input channels
-			0,                   // Output channels
-			float64(sampleRate), // Sample rate
-			framesPerBuffer,     // Frames per buffer
-			inputBuffer,         // Input buffer
+			channels,        // Input channels
+			0,               // Output channels
+			sampleRate,      // Sample rate
+			framesPerBuffer, // Frames per buffer
+			inputBuffer,     // Input buffer
+
 		)
 		if err != nil {
 			log.Fatalf("Failed to open default stream: %v", err)
@@ -85,6 +94,11 @@ func ReadAudioChunk(buffer []byte) (int, error) {
 	for i, sample := range inputBuffer {
 		buffer[bytesPerSample*i] = byte(sample)
 		buffer[bytesPerSample*i+1] = byte(sample >> 8)
+	}
+
+	// empty the inputBuffer
+	for i := range inputBuffer {
+		inputBuffer[i] = 0
 	}
 
 	return framesPerBuffer * bytesPerSample, nil

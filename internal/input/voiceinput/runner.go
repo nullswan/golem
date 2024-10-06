@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"log"
+	"math"
 )
 
 // Run starts the voice input loop
@@ -46,11 +47,7 @@ func Run(ctx context.Context, ch chan<- []byte) {
 	vad := initializeVAD()
 	speaking := false
 
-	chunckAgg := make(
-		[]byte,
-		0,
-		compressedBufferSize,
-	)
+	chunckAgg := make([]byte, compressedBufferSize, compressedBufferSize)
 
 	for {
 		select {
@@ -60,14 +57,17 @@ func Run(ctx context.Context, ch chan<- []byte) {
 			if !ok {
 				return
 			}
-			// fmt.Printf("Ch: %v\n", chunk)
+
 			if isSpeech(vad, chunk) {
+				if computeRMS(chunk) < rmsThreshold {
+					continue
+				}
 				if !speaking {
 					ch <- []byte(startWord)
 					speaking = true
 				}
 				chunckAgg = append(chunckAgg, chunk...)
-				if len(chunckAgg) == compressedChunkSize {
+				if len(chunckAgg) >= compressedChunkSize {
 					flushAudioChunk(ch, &chunckAgg)
 				}
 			} else {
@@ -82,26 +82,38 @@ func Run(ctx context.Context, ch chan<- []byte) {
 	}
 }
 
+func computeRMS(samples []byte) float64 {
+	var sumSquares float64
+	for i := 0; i < len(samples); i += 2 {
+		if i+1 >= len(samples) {
+			break
+		}
+		sample := int16(samples[i]) | int16(samples[i+1])<<8
+		normalizedSample := float64(sample) / 32768.0
+		sumSquares += normalizedSample * normalizedSample
+	}
+	meanSquares := sumSquares / float64(len(samples)/2)
+	rms := math.Sqrt(meanSquares)
+	return rms
+}
+
 func flushAudioChunk(ch chan<- []byte, chunks *[]byte) {
 	if len(
 		*chunks,
 	) <= compressedBufferSize/compressedChunkSize*compressedMinChunks {
-		*chunks = make(
-			[]byte,
-			0,
-			compressedBufferSize,
-		)
+		for i := range compressedBufferSize - 1 {
+			(*chunks)[i] = 0
+		}
 		return
 	}
 
 	// Flush the chunks
-	ch <- compressAudio(*chunks)
+	ch <- *chunks
 
 	// Clear the chunks
-	*chunks = make(
-		[]byte,
-		0,
-		compressedBufferSize,
-	)
+	for i := range compressedBufferSize - 1 {
+		(*chunks)[i] = 0
+	}
+
 	return
 }

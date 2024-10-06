@@ -6,7 +6,7 @@ import (
 	"github.com/maxhawkins/go-webrtcvad"
 )
 
-const vadMode = 3 // TODO(nullswan): Make this configurable
+const vadMode = 2 // TODO(nullswan): Make this configurable
 
 func initializeVAD() *webrtcvad.VAD {
 	vad, err := webrtcvad.New()
@@ -24,7 +24,7 @@ func initializeVAD() *webrtcvad.VAD {
 }
 
 func isSpeech(vad *webrtcvad.VAD, audio []byte) bool {
-	speech, err := vad.Process(sampleRate, audio)
+	speech, err := vad.Process(int(sampleRate), audio)
 	if err != nil {
 		log.Println("VAD processing error:", err)
 		return false
