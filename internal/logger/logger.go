@@ -14,14 +14,13 @@ var (
 )
 
 func initInstance() {
-	level := slog.LevelInfo
+	level := slog.LevelError
 	if os.Getenv("DEBUG") != "" {
 		level = slog.LevelDebug
 	}
 
 	loggerHandlerOpts := &slog.HandlerOptions{
-		Level:     level,
-		AddSource: true,
+		Level: level,
 	}
 
 	logger = slog.New(

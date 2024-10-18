@@ -11,6 +11,7 @@ import (
 	"syscall"
 
 	"github.com/nullswan/nomi/internal/chat"
+	"github.com/nullswan/nomi/internal/cli"
 	"github.com/nullswan/nomi/internal/code"
 	"github.com/nullswan/nomi/internal/completion"
 	"github.com/nullswan/nomi/internal/logger"
@@ -44,8 +45,6 @@ var interpreterCmd = &cobra.Command{
 		provider = providers.CheckProvider()
 
 		var err error
-		var codeGenerationBackend baseprovider.TextToTextProvider
-		var codeInferenceBackend baseprovider.TextToTextProvider
 
 		interpreterAskPrompt, err := code.GetDefaultInterpreterPrompt(
 			runtime.GOOS,
@@ -56,41 +55,29 @@ var interpreterCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		if interpreterAskPrompt.Preferences.Reasoning {
-			codeGenerationBackend, err = providers.LoadTextToTextReasoningProvider(
-				provider,
-				targetModel,
-			)
-			if err != nil {
-				log.With("error", err).
-					Warn("Error loading text-to-text reasoning provider")
-			}
-		}
-		if codeGenerationBackend == nil {
-			codeGenerationBackend, err = providers.LoadTextToTextProvider(
-				provider,
-				targetModel,
-			)
-			if err != nil {
-				log.With("error", err).
-					Error("Error loading text-to-text provider")
-				os.Exit(1)
-			}
-		}
-		defer codeGenerationBackend.Close()
-
-		codeInferenceBackend, err = providers.LoadTextToTextProvider(
-			provider,
-			"", // default to fast
+		codeGenerationBackend, err := cli.InitProviders(
+			log,
+			"",
+			interpreterAskPrompt.Preferences.Reasoning,
 		)
 		if err != nil {
 			log.With("error", err).
-				Error("Error loading text-to-text provider")
+				Error("Error initializing code generation providers")
 			os.Exit(1)
 		}
-		defer codeInferenceBackend.Close()
 
-		chatRepo, err := chat.NewSQLiteRepository(cfg.Output.Sqlite.Path)
+		codeInferenceBackend, err := cli.InitProviders(
+			log,
+			"",
+			interpreterAskPrompt.Preferences.Reasoning,
+		)
+		if err != nil {
+			log.With("error", err).
+				Error("Error initializing code inference providers")
+			os.Exit(1)
+		}
+
+		chatRepo, err := cli.InitChatDatabase(cfg.Output.Sqlite.Path)
 		if err != nil {
 			log.With("error", err).
 				Error("Error creating chat repository")
@@ -98,10 +85,11 @@ var interpreterCmd = &cobra.Command{
 		}
 		defer chatRepo.Close()
 
-		codeRepo, err := code.NewSQLiteRepository(cfg.Output.Sqlite.Path)
+		codeRepo, err := cli.InitCodeDatabase(cfg.Output.Sqlite.Path)
 		if err != nil {
 			log.With("error", err).
 				Error("Error creating code repository")
+
 			os.Exit(1)
 		}
 		defer codeRepo.Close()
@@ -111,7 +99,7 @@ var interpreterCmd = &cobra.Command{
 
 		// Display welcome message
 		fmt.Printf("----\n")
-		fmt.Printf("✨ Welcome to Golem Interpreter! 🗿✨\n")
+		fmt.Printf("✨ Welcome to Nomi Interpreter! (%s) ✨\n", buildVersion)
 		fmt.Println()
 		fmt.Println("Configuration")
 		fmt.Printf(
@@ -218,11 +206,11 @@ var interpreterCmd = &cobra.Command{
 			)
 
 			// TODO: Display the code that is going to be interpreted temporarily
-			completion, err := generateCompletion(
+			completion, err := cli.GenerateCompletion(
 				requestContext,
 				conversation,
-				codeGenerationBackend,
 				renderer,
+				codeGenerationBackend,
 			)
 			if err != nil {
 				if strings.Contains(err.Error(), "context canceled") {
@@ -381,7 +369,7 @@ func storeCodePrompt(
 				return "", fmt.Errorf("error generating completion")
 			}
 
-			if !isTombStone(cmpl) {
+			if !completion.IsTombStone(cmpl) {
 				continue
 			}
 
@@ -445,7 +433,7 @@ func getSuggestionFromBlocks(
 				return nil, fmt.Errorf("error generating completion")
 			}
 
-			if !isTombStone(cmpl) {
+			if !completion.IsTombStone(cmpl) {
 				continue
 			}
 

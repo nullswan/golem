@@ -10,10 +10,12 @@ require (
 	github.com/dustin/go-humanize v1.0.1
 	github.com/golang-migrate/migrate/v4 v4.18.1
 	github.com/google/uuid v1.6.0
+	github.com/gordonklaus/portaudio v0.0.0-20230709114228-aafa478834f5
 	github.com/jedib0t/go-pretty/v6 v6.5.9
 	github.com/manifoldco/promptui v0.9.0
 	github.com/muesli/termenv v0.15.3-0.20240618155329-98d742f6907a
 	github.com/ollama/ollama v0.3.12
+	github.com/robotn/gohook v0.41.0
 	github.com/sashabaranov/go-openai v1.31.0
 	github.com/spf13/cobra v1.8.1
 	golang.org/x/sync v0.8.0
@@ -43,6 +45,7 @@ require (
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
+	github.com/vcaesar/keycode v0.10.1 // indirect
 	github.com/yuin/goldmark v1.7.4 // indirect
 	github.com/yuin/goldmark-emoji v1.0.3 // indirect
 	go.uber.org/atomic v1.11.0 // indirect

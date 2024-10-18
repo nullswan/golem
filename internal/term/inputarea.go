@@ -15,7 +15,7 @@ var (
 	ErrReadlineInit     = errors.New("error initializing readline")
 )
 
-func NewInputArea() (string, error) {
+func InitReadline() (*readline.Instance, error) {
 	rl, err := readline.NewEx(&readline.Config{
 		Prompt:                 ">>> ",
 		HistoryFile:            "/dev/null",
@@ -25,7 +25,15 @@ func NewInputArea() (string, error) {
 		DisableAutoSaveHistory: true,
 	})
 	if err != nil {
-		return "", fmt.Errorf("%w: %v", ErrReadlineInit, err)
+		return nil, fmt.Errorf("%w: %v", ErrReadlineInit, err)
+	}
+	return rl, nil
+}
+
+func NewInputArea() (string, error) {
+	rl, err := InitReadline()
+	if err != nil {
+		return "", err
 	}
 	defer rl.Close()
 

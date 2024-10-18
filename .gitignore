@@ -2,3 +2,5 @@ dist/
 *.o
 dev/
 rfcs/
+*.wav
+nomi.log

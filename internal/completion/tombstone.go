@@ -1,6 +1,9 @@
 package completion
 
-import "time"
+import (
+	"reflect"
+	"time"
+)
 
 // A completion tombstone is the final state of a completion.
 type Tombstone struct {
@@ -56,4 +59,8 @@ func (c Tombstone) Timestamp() time.Time {
 func (c Tombstone) WithTimestamp(t time.Time) Tombstone {
 	c.timestamp = t
 	return c
+}
+
+func IsTombStone(cmpl Completion) bool {
+	return reflect.TypeOf(cmpl) == reflect.TypeOf(Tombstone{})
 }
